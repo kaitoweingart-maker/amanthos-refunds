@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Amanthos – Refund Admin</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  main { max-width: 1080px; }
+  table.list { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  table.list th {
+    text-align: left; padding: 8px 10px;
+    background: #f2f0eb; color: #666; font-size: 0.75rem;
+    position: sticky; top: 0;
+  }
+  table.list td { padding: 8px 10px; border-bottom: 1px solid #f0ede6; vertical-align: top; }
+  table.list select, table.list input { font-size: 0.85rem; padding: 6px 8px; }
+  .save-btn {
+    background: #1a1a2e; color: #fff; border: none;
+    padding: 7px 14px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;
+  }
+  .save-btn:disabled { opacity: 0.5; }
+  .save-btn.saved { background: #1e7d45; }
+  .detail { color: #888; font-size: 0.78rem; margin-top: 2px; }
+  .scroll { overflow-x: auto; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Amanthos – Refund Admin</h1>
+  <p>Zahlungsstatus verwalten</p>
+</header>
+<main>
+  <div class="box" id="loginBox">
+    <label>Passwort</label>
+    <input type="password" id="password">
+    <button class="btn" id="login">Anmelden</button>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+  <div class="box" id="listBox" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h2 style="font-size:1.1rem;">Refunds</h2>
+      <button class="save-btn" id="reload">↻ Aktualisieren</button>
+    </div>
+    <div class="scroll">
+      <table class="list">
+        <thead>
+          <tr>
+            <th>Datum</th><th>Code</th><th>Objekt</th><th>Gast / Details</th>
+            <th>Betrag</th><th>Status</th><th>Notiz</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+<footer>Amanthos AG · Früemattli 1 · 6404 Greppen</footer>
+<script>
+const API = 'https://amanthos-group-booking.onrender.com';
+const LABELS = {
+  eingereicht: 'Eingereicht',
+  in_bearbeitung: 'In Bearbeitung',
+  ausbezahlt: 'Ausbezahlt',
+  abgelehnt: 'Abgelehnt',
+};
+let password = '';
+
+function fmtTs(iso) {
+  try {
+    return new Date(iso).toLocaleString('de-CH', {
+      day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit',
+    });
+  } catch { return iso; }
+}
+
+async function adminCall(body) {
+  const res = await fetch(API + '/refunds/admin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password, ...body }),
+  });
+  return { status: res.status, data: await res.json() };
+}
+
+function render(refunds) {
+  const tbody = document.getElementById('rows');
+  tbody.innerHTML = '';
+  refunds.forEach(r => {
+    const tr = document.createElement('tr');
+
+    const tdDate = document.createElement('td');
+    tdDate.textContent = fmtTs(r.created_at);
+
+    const tdCode = document.createElement('td');
+    tdCode.innerHTML = `<strong>${r.code}</strong>`;
+    const mail = document.createElement('div');
+    mail.className = 'detail';
+    mail.textContent = r.email;
+    tdCode.appendChild(mail);
+
+    const tdLoc = document.createElement('td');
+    tdLoc.textContent = r.location;
+    const emp = document.createElement('div');
+    emp.className = 'detail';
+    emp.textContent = r.employee_name;
+    tdLoc.appendChild(emp);
+
+    const tdGuest = document.createElement('td');
+    tdGuest.textContent = r.guest_name || '—';
+    const det = document.createElement('div');
+    det.className = 'detail';
+    det.textContent = [r.booking_ref, r.iban, r.reason].filter(Boolean).join(' · ');
+    tdGuest.appendChild(det);
+
+    const tdAmt = document.createElement('td');
+    tdAmt.textContent = `${r.currency || 'CHF'} ${r.amount}`;
+
+    const tdStatus = document.createElement('td');
+    const sel = document.createElement('select');
+    Object.entries(LABELS).forEach(([v, l]) => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = l;
+      if (r.status === v) o.selected = true;
+      sel.appendChild(o);
+    });
+    tdStatus.appendChild(sel);
+
+    const tdNote = document.createElement('td');
+    const note = document.createElement('input');
+    note.type = 'text';
+    note.value = r.admin_note || '';
+    note.style.minWidth = '140px';
+    tdNote.appendChild(note);
+
+    const tdSave = document.createElement('td');
+    const btn = document.createElement('button');
+    btn.className = 'save-btn';
+    btn.textContent = 'Speichern';
+    btn.onclick = async () => {
+      btn.disabled = true;
+      btn.textContent = '…';
+      const { status, data } = await adminCall({
+        action: 'update', id: r.id, status: sel.value, note: note.value.trim(),
+      }).catch(() => ({ status: 0, data: {} }));
+      btn.disabled = false;
+      if (status === 200 && data.ok) {
+        btn.textContent = '✓ Gespeichert';
+        btn.classList.add('saved');
+        setTimeout(() => { btn.textContent = 'Speichern'; btn.classList.remove('saved'); }, 2500);
+      } else {
+        btn.textContent = 'Fehler — nochmals';
+      }
+    };
+    tdSave.appendChild(btn);
+
+    tr.append(tdDate, tdCode, tdLoc, tdGuest, tdAmt, tdStatus, tdNote, tdSave);
+    tbody.appendChild(tr);
+  });
+}
+
+async function load() {
+  const { status, data } = await adminCall({ action: 'list' }).catch(() => ({ status: 0, data: {} }));
+  const m = document.getElementById('loginMsg');
+  if (status === 200 && data.ok) {
+    document.getElementById('loginBox').style.display = 'none';
+    document.getElementById('listBox').style.display = 'block';
+    render(data.refunds || []);
+  } else if (status === 403) {
+    m.className = 'msg err';
+    m.textContent = 'Falsches Passwort.';
+  } else {
+    m.className = 'msg err';
+    m.textContent = 'Laden fehlgeschlagen — bitte nochmals versuchen (Server startet evtl. gerade).';
+  }
+}
+
+document.getElementById('login').onclick = () => {
+  password = document.getElementById('password').value;
+  if (!password) return;
+  document.getElementById('loginMsg').className = 'msg info';
+  document.getElementById('loginMsg').textContent = 'Wird geladen…';
+  load();
+};
+document.getElementById('password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('login').click();
+});
+document.getElementById('reload').onclick = load;
+
+fetch(API + '/healthz').catch(() => {});
+</script>
+</body>
+</html>

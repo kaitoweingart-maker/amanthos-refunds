@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Amanthos – Refund einreichen</title>
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+<header>
+  <h1>Amanthos – Refunds</h1>
+  <p>Amanthos AG · Früemattli 1 · 6404 Greppen</p>
+  <nav>
+    <a href="index.html" class="active">Refund einreichen</a>
+    <a href="status.html">Status prüfen</a>
+  </nav>
+</header>
+<main>
+  <div class="box">
+    <label>Objekt / Standort *</label>
+    <select id="location">
+      <option value="">— Bitte wählen —</option>
+      <option>Prize by Radisson Zürich</option>
+      <option>Chalet Swiss Interlaken</option>
+      <option>Hotel Mulin</option>
+      <option>Amanthos Living Zürich Airport</option>
+      <option>Amanthos Living Nyon</option>
+    </select>
+    <label>Mitarbeiter/in *</label>
+    <input type="text" id="employeeName" autocomplete="name">
+    <label>E-Mail (für Status-Abfrage) *</label>
+    <input type="email" id="email" autocomplete="email">
+    <label>Name Gast</label>
+    <input type="text" id="guestName">
+    <label>Reservierungsnummer</label>
+    <input type="text" id="bookingRef">
+    <label>Betrag CHF *</label>
+    <input type="text" id="amount" inputmode="decimal" placeholder="z. B. 150.00">
+    <label>IBAN des Gastes (falls Rücküberweisung)</label>
+    <input type="text" id="iban" placeholder="CH..">
+    <label>Grund des Refunds</label>
+    <textarea id="reason"></textarea>
+    <button class="btn" id="submit">Refund einreichen</button>
+    <div class="msg" id="msg"></div>
+  </div>
+  <div class="box" id="successBox" style="display:none;">
+    <h2 style="color:#1e7d45;">✓ Refund eingereicht</h2>
+    <p style="margin-top:10px;font-size:0.95rem;color:#555;">
+      Dein Status-Code (auch per E-Mail zugestellt):
+    </p>
+    <div class="code-display" id="codeOut"></div>
+    <p style="font-size:0.9rem;color:#555;">
+      Mit deiner E-Mail-Adresse und diesem Code kannst du den Status jederzeit abrufen:
+      <a href="status.html" style="color:#b8963e;">Status prüfen →</a>
+    </p>
+  </div>
+</main>
+<footer>Amanthos AG · Früemattli 1 · 6404 Greppen</footer>
+<script>
+const API = 'https://amanthos-group-booking.onrender.com';
+
+function showMsg(cls, text) {
+  const m = document.getElementById('msg');
+  m.className = 'msg ' + cls;
+  m.textContent = text;
+}
+
+document.getElementById('submit').onclick = async () => {
+  const val = id => document.getElementById(id).value.trim();
+  const payload = {
+    location: val('location'),
+    employeeName: val('employeeName'),
+    email: val('email'),
+    guestName: val('guestName'),
+    bookingRef: val('bookingRef'),
+    amount: val('amount'),
+    iban: val('iban'),
+    reason: val('reason'),
+  };
+  if (!payload.location || !payload.employeeName || !payload.email || !payload.amount) {
+    showMsg('err', 'Bitte alle Pflichtfelder (*) ausfüllen.');
+    return;
+  }
+  const btn = document.getElementById('submit');
+  btn.disabled = true;
+  showMsg('info', 'Wird eingereicht… (kann bis zu 1 Minute dauern)');
+  try {
+    const res = await fetch(API + '/refunds', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const out = await res.json();
+    if (res.ok && out.ok) {
+      showMsg('', '');
+      document.getElementById('codeOut').textContent = out.code;
+      document.getElementById('successBox').style.display = 'block';
+      document.getElementById('successBox').scrollIntoView({ behavior: 'smooth' });
+      ['location','employeeName','email','guestName','bookingRef','amount','iban','reason']
+        .forEach(id => document.getElementById(id).value = '');
+    } else {
+      showMsg('err', out.error || 'Einreichen fehlgeschlagen — bitte nochmals versuchen.');
+    }
+  } catch {
+    showMsg('err', 'Einreichen fehlgeschlagen — bitte nochmals versuchen.');
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+// Warm up the Render backend (free tier cold start)
+fetch(API + '/healthz').catch(() => {});
+</script>
+</body>
+</html>
