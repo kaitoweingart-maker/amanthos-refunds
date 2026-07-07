@@ -47,7 +47,7 @@
       <table class="list">
         <thead>
           <tr>
-            <th>Datum</th><th>Code</th><th>Objekt</th><th>Gast / Details</th>
+            <th>Datum</th><th>Code</th><th>Objekt</th><th>Empfänger / Zahlungsdetails</th>
             <th>Betrag</th><th>Status</th><th>Notiz</th><th></th>
           </tr>
         </thead>
@@ -108,11 +108,23 @@ function render(refunds) {
     tdLoc.appendChild(emp);
 
     const tdGuest = document.createElement('td');
-    tdGuest.textContent = r.guest_name || '—';
+    tdGuest.textContent = r.payee_name || '—';
+    const addr = document.createElement('div');
+    addr.className = 'detail';
+    addr.textContent = [r.payee_address, [r.payee_postcode, r.payee_city].filter(Boolean).join(' '), r.payee_country]
+      .filter(Boolean).join(', ');
+    const bankDet = document.createElement('div');
+    bankDet.className = 'detail';
+    bankDet.textContent = [
+      r.iban && `IBAN ${r.iban}`,
+      r.swift && `SWIFT ${r.swift}`,
+      r.bank,
+      r.cc_number && `CC ${r.cc_number}`,
+    ].filter(Boolean).join(' · ');
     const det = document.createElement('div');
     det.className = 'detail';
-    det.textContent = [r.booking_ref, r.iban, r.reason].filter(Boolean).join(' · ');
-    tdGuest.appendChild(det);
+    det.textContent = [r.booking_ref && `Res. ${r.booking_ref}`, r.reason].filter(Boolean).join(' · ');
+    tdGuest.append(addr, bankDet, det);
 
     const tdAmt = document.createElement('td');
     tdAmt.textContent = `${r.currency || 'CHF'} ${r.amount}`;

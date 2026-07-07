@@ -32,7 +32,7 @@
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:0.95rem;margin-top:14px;">
       <tr><td style="padding:5px 0;color:#888;width:150px;">Objekt</td><td id="rLocation"></td></tr>
-      <tr><td style="padding:5px 0;color:#888;">Gast</td><td id="rGuest"></td></tr>
+      <tr><td style="padding:5px 0;color:#888;">Empfänger/in</td><td id="rGuest"></td></tr>
       <tr><td style="padding:5px 0;color:#888;">Reservierung</td><td id="rRef"></td></tr>
       <tr><td style="padding:5px 0;color:#888;">Betrag</td><td id="rAmount"></td></tr>
     </table>
@@ -87,7 +87,7 @@ document.getElementById('check').onclick = async () => {
       badge.textContent = r.statusLabel || LABELS[r.status] || r.status;
       badge.className = 'badge ' + r.status;
       document.getElementById('rLocation').textContent = r.location;
-      document.getElementById('rGuest').textContent = r.guestName || '—';
+      document.getElementById('rGuest').textContent = r.payeeName || '—';
       document.getElementById('rRef').textContent = r.bookingRef || '—';
       document.getElementById('rAmount').textContent = (r.currency || 'CHF') + ' ' + r.amount;
       const noteWrap = document.getElementById('rNoteWrap');
